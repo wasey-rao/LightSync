@@ -1,0 +1,79 @@
+<Window x:Class="LightSync.MonitorPickerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Choose a screen" SizeToContent="WidthAndHeight" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Icon="Assets/LightSync.ico"
+        Background="{StaticResource WindowBg}" Foreground="{StaticResource TextPrimary}">
+    <Window.Resources>
+        <Style x:Key="MonitorCard" TargetType="Button">
+            <Setter Property="Margin" Value="0,0,14,14" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" CornerRadius="12" Background="{StaticResource CardBg}" BorderThickness="2"
+                                BorderBrush="{Binding Ring}" Padding="12">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="{StaticResource CardHoverBg}" />
+                                <Setter TargetName="Bg" Property="BorderBrush" Value="#8B5CF6" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bg" Property="BorderBrush" Value="#8B5CF6" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bg" Property="Opacity" Value="0.85" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <StackPanel Margin="28,22,14,20">
+        <TextBlock Text="Which screen should the lights follow?" FontSize="22" FontWeight="SemiBold" />
+        <TextBlock Text="This is what each screen is showing right now. Click the one you're watching."
+                   Foreground="{StaticResource TextSecondary}" Margin="0,4,0,18" />
+
+        <ItemsControl x:Name="MonitorList" MaxWidth="1180" HorizontalAlignment="Left">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Button Style="{StaticResource MonitorCard}" Tag="{Binding}" Click="Monitor_Click"
+                            AutomationProperties.Name="{Binding Title}">
+                        <StackPanel>
+                            <Border Width="{Binding ThumbWidth}" Height="{Binding ThumbHeight}" CornerRadius="6" Background="#0C0C0F">
+                                <Grid>
+                                    <TextBlock Text="Preview unavailable" Foreground="{StaticResource TextSecondary}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    <Image Source="{Binding Thumbnail}" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality" />
+                                </Grid>
+                            </Border>
+                            <DockPanel Margin="2,12,2,0">
+                                <Border DockPanel.Dock="Right" CornerRadius="4" Padding="7,2" Background="#2E2A45"
+                                        Visibility="{Binding PrimaryVisibility}" VerticalAlignment="Center">
+                                    <TextBlock Text="Main screen" FontSize="11" Foreground="#C4B5FD" />
+                                </Border>
+                                <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <TextBlock Text="{Binding Detail}" Foreground="{StaticResource TextSecondary}" Margin="2,3,2,0" />
+                        </StackPanel>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <DockPanel Margin="0,6,14,0">
+            <Button DockPanel.Dock="Right" Content="Cancel" IsCancel="True" Padding="18,6" />
+            <CheckBox x:Name="RememberBox" Content="Remember this screen and don't ask again" VerticalAlignment="Center" />
+        </DockPanel>
+    </StackPanel>
+</Window>

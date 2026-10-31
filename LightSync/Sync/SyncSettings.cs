@@ -21,6 +21,8 @@ public enum CaptureRegion { Full, Edges, Center }
 public sealed class SyncSettings
 {
     public string Monitor { get; set; } = "";
+    /// <summary>With several monitors, show the visual display picker each time sync is started by hand.</summary>
+    public bool AskForDisplay { get; set; } = true;
     public CaptureMethod Capture { get; set; } = CaptureMethod.Auto;
     public SyncMode Mode { get; set; } = SyncMode.Vibrant;
     public CaptureRegion Region { get; set; } = CaptureRegion.Full;

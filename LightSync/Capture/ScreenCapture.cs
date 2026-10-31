@@ -50,12 +50,15 @@ public static class Monitors
             ?? all[0];
     }
 
-    static string Describe(System.Windows.Forms.Screen screen)
+    /// <summary>"\\.\DISPLAY2" → "Display 2".</summary>
+    public static string ShortName(string deviceName)
     {
-        var digits = new string(screen.DeviceName.Where(char.IsDigit).ToArray());
-        var name = digits.Length > 0 ? $"Display {digits}" : screen.DeviceName;
-        return $"{name}  ·  {screen.Bounds.Width}×{screen.Bounds.Height}{(screen.Primary ? "  ·  primary" : "")}";
+        var digits = new string(deviceName.Where(char.IsDigit).ToArray());
+        return digits.Length > 0 ? $"Display {digits}" : deviceName;
     }
+
+    static string Describe(System.Windows.Forms.Screen screen) =>
+        $"{ShortName(screen.DeviceName)}  ·  {screen.Bounds.Width}×{screen.Bounds.Height}{(screen.Primary ? "  ·  primary" : "")}";
 }
 
 public static class CaptureFactory

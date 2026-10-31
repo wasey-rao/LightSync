@@ -130,8 +130,25 @@
                                 <StackPanel>
                                     <TextBlock Style="{StaticResource CardTitle}" Text="Source" />
                                     <TextBlock Style="{StaticResource FieldLabel}" Text="Display" />
-                                    <ComboBox x:Name="MonitorBox" DisplayMemberPath="Label" SelectedValuePath="DeviceName"
-                                              SelectedValue="{Binding Monitor}" HorizontalAlignment="Stretch" Margin="0,0,0,14" />
+                                    <StackPanel Margin="0,0,0,14">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <ComboBox x:Name="MonitorBox" DisplayMemberPath="Label" SelectedValuePath="DeviceName"
+                                                      SelectedValue="{Binding Monitor}" HorizontalAlignment="Stretch" />
+                                            <Button x:Name="ChooseDisplayButton" Grid.Column="1" Margin="8,0,0,0" Click="ChooseDisplay_Click"
+                                                    ToolTip="See what each screen is showing and pick one" AutomationProperties.Name="Choose display">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="&#xE7F4;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                                                    <TextBlock Text="Choose" Margin="6,0,0,0" />
+                                                </StackPanel>
+                                            </Button>
+                                        </Grid>
+                                        <CheckBox x:Name="AskDisplayBox" Content="Ask which display every time I start sync"
+                                                  IsChecked="{Binding AskForDisplay}" Margin="0,10,0,0" />
+                                    </StackPanel>
                                     <TextBlock Style="{StaticResource FieldLabel}" Text="Color mode" />
                                     <ComboBox x:Name="ModeBox" DisplayMemberPath="Label" SelectedValuePath="Value"
                                               SelectedValue="{Binding Mode}" HorizontalAlignment="Stretch" Margin="0,0,0,14" />

@@ -281,10 +281,13 @@ public partial class MainWindow : Window
 
     void PopulateChoices()
     {
-        var monitors = Monitors.GetAll();
-        MonitorBox.ItemsSource = monitors;
-        if (!monitors.Any(m => m.DeviceName == _settings.Sync.Monitor))
-            _settings.Sync.Monitor = Monitors.Resolve(null).DeviceName;
+        RefreshMonitors();
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += (_, _) => Dispatcher.InvokeAsync(() =>
+        {
+            RefreshMonitors();
+            PageSync.DataContext = null;
+            PageSync.DataContext = _settings.Sync;
+        });
 
         ModeBox.ItemsSource = new[]
         {
@@ -306,17 +309,49 @@ public partial class MainWindow : Window
         };
     }
 
+    /// <summary>Reloads the monitor list (screens can be plugged in or removed while running).</summary>
+    void RefreshMonitors()
+    {
+        var monitors = Monitors.GetAll();
+        MonitorBox.ItemsSource = monitors;
+        if (!monitors.Any(m => m.DeviceName == _settings.Sync.Monitor))
+            _settings.Sync.Monitor = Monitors.Resolve(null).DeviceName;
+
+        var multiple = monitors.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+        ChooseDisplayButton.Visibility = multiple;
+        AskDisplayBox.Visibility = multiple;
+    }
+
+    void ChooseDisplay_Click(object sender, RoutedEventArgs e) => PickDisplay(offerRemember: false);
+
+    /// <summary>Shows the visual display picker. Returns false if the user cancelled.</summary>
+    bool PickDisplay(bool offerRemember)
+    {
+        var picker = new MonitorPickerWindow(Monitors.GetAll(), _settings.Sync.Monitor, offerRemember);
+        if (!picker.ShowFor(this) || picker.SelectedDeviceName == null) return false;
+
+        _settings.Sync.Monitor = picker.SelectedDeviceName;
+        if (picker.Remember) _settings.Sync.AskForDisplay = false;
+        PageSync.DataContext = null;
+        PageSync.DataContext = _settings.Sync;
+        AppLog.Write($"Following {Monitors.ShortName(picker.SelectedDeviceName)}.");
+        return true;
+    }
+
     void SyncButton_Click(object sender, RoutedEventArgs e) => ToggleSync();
 
     void ToggleSync()
     {
         if (_engine.IsRunning) StopSync();
-        else StartSync();
+        else StartSync(interactive: true);
     }
 
-    void StartSync()
+    /// <param name="interactive">True when the user started sync by hand (may ask which screen to follow).</param>
+    void StartSync(bool interactive = false)
     {
         if (_engine.IsRunning) return;
+        if (interactive && _settings.Sync.AskForDisplay && Monitors.GetAll().Count > 1 && !PickDisplay(offerRemember: true))
+            return;
         EnsureConnected();
         _poweredOff = false;
         _device.Send(ElkProtocol.PowerOn(), "power");
@@ -379,6 +414,7 @@ public partial class MainWindow : Window
         _settings.Sync = new SyncSettings
         {
             Monitor = current.Monitor,
+            AskForDisplay = current.AskForDisplay,
             Capture = current.Capture,
             Mode = current.Mode,
             Region = current.Region,

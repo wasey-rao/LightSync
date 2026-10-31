@@ -9,7 +9,6 @@ namespace LightSync.Capture;
 /// </summary>
 public sealed unsafe class GdiCapture : IScreenCapture
 {
-    const int SampleWidth = 96;
     const int HALFTONE = 4;
     const int SRCCOPY = 0x00CC0020;
 
@@ -20,11 +19,11 @@ public sealed unsafe class GdiCapture : IScreenCapture
 
     public string Name => "GDI";
 
-    public GdiCapture(System.Drawing.Rectangle bounds)
+    public GdiCapture(System.Drawing.Rectangle bounds, int sampleWidth = 96)
     {
         _bounds = bounds;
-        _width = SampleWidth;
-        _height = Math.Max(1, (int)Math.Round(SampleWidth * (double)bounds.Height / bounds.Width));
+        _width = sampleWidth;
+        _height = Math.Max(1, (int)Math.Round(sampleWidth * (double)bounds.Height / bounds.Width));
 
         IntPtr screen = GetDC(IntPtr.Zero);
         _memoryDc = CreateCompatibleDC(screen);

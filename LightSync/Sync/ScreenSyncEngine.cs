@@ -12,10 +12,11 @@ public sealed record SyncFrame(byte R, byte G, byte B, string Source, double Fps
 /// </summary>
 public sealed class ScreenSyncEngine(ElkBledomDevice device, Func<SyncSettings> settings) : IDisposable
 {
-    const int UpgradeRetryMs = 10_000;
+    const int UpgradeRetryMs = 30_000;
 
     Thread? _thread;
     volatile bool _stop;
+    string? _lastMessage;
 
     public bool IsRunning => _thread != null;
 
@@ -26,6 +27,7 @@ public sealed class ScreenSyncEngine(ElkBledomDevice device, Func<SyncSettings> 
     {
         if (_thread != null) return;
         _stop = false;
+        _lastMessage = null;
         _thread = new Thread(Run) { IsBackground = true, Name = "Screen sync", Priority = ThreadPriority.AboveNormal };
         _thread.Start();
         AppLog.Write("Screen sync started.");
@@ -74,11 +76,11 @@ public sealed class ScreenSyncEngine(ElkBledomDevice device, Func<SyncSettings> 
                         captureKey = key;
                         haveFrame = false;
                         lastUpgradeTry = start;
-                        AppLog.Write($"Capturing {monitor.Label} via {capture.Name}.");
+                        Log($"Capturing {monitor.Label} via {capture.Name}.");
                     }
                     catch (Exception ex)
                     {
-                        AppLog.Write($"Screen capture unavailable: {ex.Message}");
+                        Log($"Screen capture unavailable: {ex.Message}");
                         Thread.Sleep(1000);
                         continue;
                     }
@@ -86,16 +88,21 @@ public sealed class ScreenSyncEngine(ElkBledomDevice device, Func<SyncSettings> 
                 else if (capture is GdiCapture && s.Capture == CaptureMethod.Auto && start - lastUpgradeTry > UpgradeRetryMs)
                 {
                     // DirectX may have failed transiently (e.g. at the lock screen); try again periodically.
+                    // The first frame of a new duplication arrives immediately, so a test grab proves it works.
                     lastUpgradeTry = start;
+                    DxgiCapture? upgraded = null;
                     try
                     {
-                        var upgraded = DxgiCapture.Create(Monitors.Resolve(s.Monitor).DeviceName);
+                        upgraded = DxgiCapture.Create(Monitors.Resolve(s.Monitor).DeviceName);
+                        if (upgraded.TryCapture(100, frame)) haveFrame = true;
                         capture.Dispose();
                         capture = upgraded;
-                        haveFrame = false;
-                        AppLog.Write("Switched to DirectX capture.");
+                        Log("Switched to DirectX capture.");
                     }
-                    catch { /* stay on GDI */ }
+                    catch
+                    {
+                        if (upgraded != capture) upgraded?.Dispose(); // stay on GDI
+                    }
                 }
 
                 try
@@ -104,10 +111,31 @@ public sealed class ScreenSyncEngine(ElkBledomDevice device, Func<SyncSettings> 
                 }
                 catch (Exception ex)
                 {
-                    AppLog.Write(ex is CaptureLostException ? ex.Message : $"Capture error: {ex.Message}");
+                    bool lost = ex is CaptureLostException;
+                    bool wasDirectX = capture is DxgiCapture;
                     capture.Dispose();
                     capture = null;
-                    Thread.Sleep(ex is CaptureLostException ? 200 : 1000);
+
+                    if (!lost && wasDirectX && s.Capture == CaptureMethod.Auto)
+                    {
+                        // DirectX can't handle this desktop; GDI always can.
+                        Log($"DirectX capture failed ({ex.Message}); using GDI capture instead.");
+                        try
+                        {
+                            capture = new GdiCapture(Monitors.Resolve(s.Monitor).Bounds);
+                            haveFrame = false;
+                            lastUpgradeTry = start;
+                        }
+                        catch (Exception gdiError)
+                        {
+                            Log($"GDI capture unavailable: {gdiError.Message}");
+                            Thread.Sleep(1000);
+                        }
+                        continue;
+                    }
+
+                    Log(lost ? ex.Message : $"Capture error: {ex.Message}");
+                    Thread.Sleep(lost ? 200 : 1000);
                     continue;
                 }
 
@@ -149,6 +177,14 @@ public sealed class ScreenSyncEngine(ElkBledomDevice device, Func<SyncSettings> 
             capture?.Dispose();
             timeEndPeriod(1);
         }
+    }
+
+    /// <summary>Logs a message unless it repeats the previous one (keeps retry loops from flooding the log).</summary>
+    void Log(string message)
+    {
+        if (message == _lastMessage) return;
+        _lastMessage = message;
+        AppLog.Write(message);
     }
 
     /// <summary>Maps the 0-100 smoothing slider to an exponential time constant (0 … 1.5 s).</summary>
