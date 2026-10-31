@@ -5,7 +5,9 @@ public static class ColorPipeline
 {
     public static Rgb Correct(Rgb c, SyncSettings s)
     {
-        c = AdjustSaturation(c, (float)s.Saturation);
+        // Clamp after every step: float rounding can leave a channel at -0.0000001, and a negative
+        // base in MathF.Pow returns NaN, which would then stick in the smoother forever.
+        c = AdjustSaturation(c.Clamp01(), (float)s.Saturation).Clamp01();
 
         // Brightness boost, clipping by scaling all channels so the hue survives.
         c *= (float)s.BrightnessBoost;
@@ -22,12 +24,12 @@ public static class ColorPipeline
         if (max < floor)
             c = max < 0.002f ? new Rgb(floor, floor, floor) : c * (floor / max);
 
-        return c;
+        return c.Clamp01();
     }
 
     public static Rgb WhiteBalance(Rgb c, SyncSettings s)
     {
-        var balanced = new Rgb(c.R * (float)s.GainR, c.G * (float)s.GainG, c.B * (float)s.GainB);
+        var balanced = new Rgb(c.R * (float)s.GainR, c.G * (float)s.GainG, c.B * (float)s.GainB).Clamp01();
         // Very low PWM values flicker on cheap controllers; snap them to off.
         return balanced.Max < 3f / 255f ? default : balanced;
     }

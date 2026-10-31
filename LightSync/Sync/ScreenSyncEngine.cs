@@ -150,6 +150,8 @@ public sealed class ScreenSyncEngine(ElkBledomDevice device, Func<SyncSettings> 
                     float tau = SmoothingTimeConstant(s.Smoothing);
                     float alpha = tau <= 0 ? 1f : 1f - MathF.Exp(-dt / tau);
                     smoothed = Rgb.Lerp(smoothed, target, alpha);
+                    // The smoother feeds on its own output, so one bad value would stick forever.
+                    if (!smoothed.IsFinite) smoothed = target.Clamp01();
 
                     var (r, g, b) = ColorPipeline.WhiteBalance(smoothed, s).ToBytes();
                     device.SetColor(r, g, b);
