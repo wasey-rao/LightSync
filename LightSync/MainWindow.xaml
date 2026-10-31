@@ -1,0 +1,340 @@
+﻿<Window x:Class="LightSync.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="clr-namespace:LightSync.Controls"
+        Title="LightSync" Width="1060" Height="760" MinWidth="900" MinHeight="620"
+        Icon="Assets/LightSync.ico" WindowStartupLocation="CenterScreen"
+        Background="{StaticResource WindowBg}" Foreground="{StaticResource TextPrimary}">
+    <Window.Resources>
+        <Style x:Key="EffectList" TargetType="ItemsControl">
+            <Setter Property="ItemsPanel">
+                <Setter.Value>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <Button Style="{StaticResource EffectCard}" Tag="{Binding Effect}" Click="Effect_Click"
+                                AutomationProperties.Name="{Binding Effect.Name}">
+                            <StackPanel>
+                                <Border Height="8" CornerRadius="4" Background="{Binding Swatch}" Margin="0,0,0,10" />
+                                <TextBlock Text="{Binding Effect.Name}" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="236" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ───────────── Sidebar ───────────── -->
+        <Border Background="{StaticResource SidebarBg}" BorderBrush="{StaticResource CardStroke}" BorderThickness="0,0,1,0">
+            <DockPanel Margin="14,20,14,14">
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4,0,0,26">
+                    <Image x:Name="LogoImage" Width="38" Height="38" RenderOptions.BitmapScalingMode="HighQuality" />
+                    <StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="LightSync" FontSize="18" FontWeight="SemiBold" />
+                        <TextBlock Text="BLE light strip control" FontSize="11.5" Foreground="{StaticResource TextSecondary}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}" Padding="14" Margin="0">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="StatusDot" Width="9" Height="9" Fill="#6B7280" VerticalAlignment="Center" />
+                            <TextBlock x:Name="StatusTitle" Text="Disconnected" Margin="8,0,0,0" FontWeight="SemiBold" />
+                        </StackPanel>
+                        <TextBlock x:Name="StatusDetail" TextWrapping="Wrap" FontSize="11.5" Margin="0,5,0,12"
+                                   Foreground="{StaticResource TextSecondary}" />
+                        <Button x:Name="ConnectButton" Content="Connect" HorizontalAlignment="Stretch" Click="ConnectButton_Click" />
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+                            <Button HorizontalAlignment="Stretch" Click="PowerOn_Click" ToolTip="Turn the strip on">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE7E8;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                                    <TextBlock Text="On" Margin="6,0,0,0" />
+                                </StackPanel>
+                            </Button>
+                            <Button Grid.Column="2" HorizontalAlignment="Stretch" Click="PowerOff_Click" ToolTip="Turn the strip off">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE7E8;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" Opacity="0.55" />
+                                    <TextBlock Text="Off" Margin="6,0,0,0" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel>
+                    <RadioButton x:Name="NavSync" Style="{StaticResource NavButton}" Tag="&#xE7F4;" Content="Screen Sync" IsChecked="True" Checked="Nav_Checked" />
+                    <RadioButton x:Name="NavColor" Style="{StaticResource NavButton}" Tag="&#xE790;" Content="Color" Checked="Nav_Checked" />
+                    <RadioButton x:Name="NavEffects" Style="{StaticResource NavButton}" Tag="&#xE945;" Content="Effects" Checked="Nav_Checked" />
+                    <RadioButton x:Name="NavSettings" Style="{StaticResource NavButton}" Tag="&#xE713;" Content="Settings" Checked="Nav_Checked" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- ───────────── Pages ───────────── -->
+        <Grid Grid.Column="1">
+
+            <!-- Screen Sync -->
+            <ScrollViewer x:Name="PageSync" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="34,28,34,24">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="Screen Sync" />
+                    <TextBlock Style="{StaticResource PageSubtitle}"
+                               Text="Matches the strip to what's on your screen in real time: videos, games, anything." />
+
+                    <Border x:Name="PreviewSwatch" Height="150" CornerRadius="14" Background="#202026"
+                            BorderBrush="{StaticResource CardStroke}" BorderThickness="1" Margin="0,0,0,16">
+                        <Border.Effect>
+                            <DropShadowEffect x:Name="PreviewGlow" BlurRadius="60" ShadowDepth="0" Opacity="0" Color="Black" />
+                        </Border.Effect>
+                        <Grid Margin="22,16">
+                            <StackPanel VerticalAlignment="Bottom">
+                                <TextBlock x:Name="PreviewHex" Text="Idle" FontSize="30" FontWeight="SemiBold" />
+                                <TextBlock x:Name="PreviewStats" Text="Press Start to mirror your screen onto the strip." FontSize="12.5" Opacity="0.8" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Button x:Name="SyncButton" Style="{StaticResource PrimaryButton}" Height="48" FontSize="15"
+                            AutomationProperties.Name="{Binding Text, ElementName=SyncButtonText}"
+                            Margin="0,0,0,20" Click="SyncButton_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="SyncButtonIcon" Text="&#xE768;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                            <TextBlock x:Name="SyncButtonText" Text="Start Screen Sync" Margin="10,0,0,0" />
+                        </StackPanel>
+                    </Button>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                            <ColumnDefinition Width="14" />
+                            <ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource CardTitle}" Text="Source" />
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Display" />
+                                    <ComboBox x:Name="MonitorBox" DisplayMemberPath="Label" SelectedValuePath="DeviceName"
+                                              SelectedValue="{Binding Monitor}" HorizontalAlignment="Stretch" Margin="0,0,0,14" />
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Color mode" />
+                                    <ComboBox x:Name="ModeBox" DisplayMemberPath="Label" SelectedValuePath="Value"
+                                              SelectedValue="{Binding Mode}" HorizontalAlignment="Stretch" Margin="0,0,0,14" />
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Screen area" />
+                                    <ComboBox x:Name="RegionBox" DisplayMemberPath="Label" SelectedValuePath="Value"
+                                              SelectedValue="{Binding Region}" HorizontalAlignment="Stretch" Margin="0,0,0,14" />
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Capture method" />
+                                    <ComboBox x:Name="CaptureBox" DisplayMemberPath="Label" SelectedValuePath="Value"
+                                              SelectedValue="{Binding Capture}" HorizontalAlignment="Stretch" Margin="0,0,0,14" />
+                                    <CheckBox Content="Ignore black bars (letterboxed movies)" IsChecked="{Binding CropBlackBars}" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <DockPanel Margin="0,0,0,4">
+                                        <Button DockPanel.Dock="Right" Content="Reset" Padding="10,3" Click="ResetWhiteBalance_Click" />
+                                        <TextBlock Style="{StaticResource CardTitle}" Text="White balance" Margin="0" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                    <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,12"
+                                               Text="If whites look blue or green on the strip, lower that channel." />
+                                    <c:LabeledSlider Label="Red" Minimum="0.2" Maximum="1" Step="0.01" Format="{}{0:P0}" Value="{Binding GainR}" />
+                                    <c:LabeledSlider Label="Green" Minimum="0.2" Maximum="1" Step="0.01" Format="{}{0:P0}" Value="{Binding GainG}" />
+                                    <c:LabeledSlider Label="Blue" Minimum="0.2" Maximum="1" Step="0.01" Format="{}{0:P0}" Value="{Binding GainB}" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <DockPanel Margin="0,0,0,12">
+                                        <Button DockPanel.Dock="Right" Content="Defaults" Padding="10,3" Click="ResetSync_Click" />
+                                        <TextBlock Style="{StaticResource CardTitle}" Text="Response &amp; look" Margin="0" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                    <c:LabeledSlider Label="Update rate" Minimum="10" Maximum="60" Step="1" Format="{}{0:0} fps" Value="{Binding Fps}"
+                                                     ToolTip="How many color updates per second are sent to the strip." />
+                                    <c:LabeledSlider Label="Smoothing" Minimum="0" Maximum="100" Step="1" Format="{}{0:0}%" Value="{Binding Smoothing}"
+                                                     ToolTip="Higher values fade between colors more slowly and hide flicker." />
+                                    <c:LabeledSlider Label="Saturation" Minimum="0.5" Maximum="2.5" Step="0.05" Format="{}{0:0.00}×" Value="{Binding Saturation}"
+                                                     ToolTip="Makes colors more vivid. LED strips usually look best a bit above 1." />
+                                    <c:LabeledSlider Label="Brightness boost" Minimum="0.5" Maximum="3" Step="0.05" Format="{}{0:0.00}×" Value="{Binding BrightnessBoost}" />
+                                    <c:LabeledSlider Label="Contrast (gamma)" Minimum="0.6" Maximum="3" Step="0.05" Format="{}{0:0.00}" Value="{Binding Gamma}"
+                                                     ToolTip="Higher keeps dark scenes darker; lower makes the strip brighter overall." />
+                                    <c:LabeledSlider Label="Minimum brightness" Minimum="0" Maximum="40" Step="1" Format="{}{0:0}%" Value="{Binding MinBrightness}"
+                                                     ToolTip="Keeps a faint glow in dark scenes instead of turning off." />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource CardTitle}" Text="Tips" />
+                                    <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,6"
+                                               Text="• Vibrant suits most movies and games. Dominant locks onto one strong color. Average is the most literal." />
+                                    <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,6"
+                                               Text="• Use 'Edges' if the strip sits behind the screen, like an ambilight." />
+                                    <TextBlock Style="{StaticResource Hint}"
+                                               Text="• DRM-protected video (Netflix in a browser, etc.) can't be captured by any app and reads as black." />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Color -->
+            <ScrollViewer x:Name="PageColor" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="34,28,34,24">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="Color" />
+                    <TextBlock Style="{StaticResource PageSubtitle}" Text="Pick a solid color and brightness for the strip." />
+
+                    <Border Style="{StaticResource Card}" Padding="24,22">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="ColorPreview" Width="128" Height="128" CornerRadius="64" Background="#B400FF" VerticalAlignment="Center">
+                                <Border.Effect>
+                                    <DropShadowEffect x:Name="ColorGlow" BlurRadius="50" ShadowDepth="0" Opacity="0.8" Color="#B400FF" />
+                                </Border.Effect>
+                            </Border>
+                            <StackPanel Grid.Column="1" Margin="32,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Hue" />
+                                <Slider x:Name="HueSlider" Style="{StaticResource GradientSlider}" Minimum="0" Maximum="360"
+                                        Background="{StaticResource HueGradient}" ValueChanged="Hsv_ValueChanged" Margin="0,0,0,14" />
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Saturation" />
+                                <Slider x:Name="SatSlider" Style="{StaticResource GradientSlider}" Minimum="0" Maximum="100"
+                                        ValueChanged="Hsv_ValueChanged" Margin="0,0,0,14" />
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Hex" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}" Margin="0,0,10,0" />
+                                    <TextBox x:Name="HexBox" Width="120" KeyDown="HexBox_KeyDown" LostKeyboardFocus="HexBox_LostKeyboardFocus" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource CardTitle}" Text="Presets" />
+                            <WrapPanel x:Name="SwatchPanel" Margin="0,0,0,-10" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource CardTitle}" Text="Brightness" />
+                            <c:LabeledSlider x:Name="BrightnessSlider" Label="Strip brightness" Minimum="0" Maximum="100" Step="1"
+                                             Format="{}{0:0}%" Value="{Binding Brightness}" ValueChanged="BrightnessSlider_ValueChanged" />
+                            <TextBlock Style="{StaticResource Hint}" Text="Also applies to screen sync and effects." />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Effects -->
+            <ScrollViewer x:Name="PageEffects" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="34,28,34,24">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="Effects" />
+                    <TextBlock Style="{StaticResource PageSubtitle}" Text="Animations that run on the controller itself, like the presets in the phone app." />
+
+                    <Border Style="{StaticResource Card}">
+                        <c:LabeledSlider x:Name="SpeedSlider" Label="Speed" Minimum="0" Maximum="100" Step="1" Format="{}{0:0}%"
+                                         Value="{Binding EffectSpeed}" ValueChanged="SpeedSlider_ValueChanged" Margin="0,0,0,-12" />
+                    </Border>
+
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="Fade" />
+                    <ItemsControl x:Name="FadeEffects" Style="{StaticResource EffectList}" />
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="Jump" Margin="2,10,0,10" />
+                    <ItemsControl x:Name="JumpEffects" Style="{StaticResource EffectList}" />
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="Strobe" Margin="2,10,0,10" />
+                    <ItemsControl x:Name="BlinkEffects" Style="{StaticResource EffectList}" />
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Settings -->
+            <ScrollViewer x:Name="PageSettings" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="34,28,34,24">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="Settings" />
+                    <TextBlock Style="{StaticResource PageSubtitle}" Text="Device, startup and troubleshooting." />
+
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource CardTitle}" Text="Light strip" />
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Bluetooth address" />
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="AddressBox" Text="{Binding DeviceAddress, UpdateSourceTrigger=PropertyChanged}" FontFamily="Consolas" />
+                                <Button Grid.Column="1" Content="Use &amp; connect" Margin="8,0,0,0" Click="UseAddress_Click" />
+                                <Button x:Name="ScanButton" Grid.Column="2" Margin="8,0,0,0" Click="Scan_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="&#xE702;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="ScanButtonText" Text="Scan" Margin="6,0,0,0" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                            <ListBox x:Name="ScanList" MaxHeight="190" Visibility="Collapsed" Margin="0,0,0,10"
+                                     MouseDoubleClick="ScanList_MouseDoubleClick">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel>
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding SignalText}" Foreground="{StaticResource TextSecondary}" Margin="12,0,0,0" />
+                                            <TextBlock>
+                                                <Run Text="{Binding DisplayName, Mode=OneWay}" FontWeight="SemiBold" />
+                                                <Run Text="  " />
+                                                <Run Text="{Binding Mac, Mode=OneWay}" Foreground="{StaticResource TextSecondary}" FontFamily="Consolas" />
+                                            </TextBlock>
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <CheckBox Content="Connect automatically when LightSync starts" IsChecked="{Binding AutoConnect}" />
+                            <TextBlock Style="{StaticResource Hint}" Margin="0,10,0,0"
+                                       Text="The strip accepts one connection at a time. Close Lotus Lantern on your phone (or turn the phone's Bluetooth off) before connecting from the PC." />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource CardTitle}" Text="Startup &amp; tray" />
+                            <CheckBox x:Name="StartWithWindowsBox" Content="Start LightSync when I sign in to Windows" Margin="0,0,0,8"
+                                      Checked="StartWithWindows_Changed" Unchecked="StartWithWindows_Changed" />
+                            <CheckBox Content="Start hidden in the system tray" IsChecked="{Binding StartMinimized}" Margin="0,0,0,8" />
+                            <CheckBox Content="Resume screen sync on start if it was running when I quit" IsChecked="{Binding ResumeSyncOnLaunch}" Margin="0,0,0,8" />
+                            <CheckBox Content="Closing the window keeps LightSync running in the tray" IsChecked="{Binding CloseToTray}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,10">
+                                <Button DockPanel.Dock="Right" Content="Open log folder" Padding="10,3" Click="OpenLogFolder_Click" />
+                                <TextBlock Style="{StaticResource CardTitle}" Text="Activity log" Margin="0" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <TextBox x:Name="LogBox" IsReadOnly="True" Height="200" FontFamily="Consolas" FontSize="11.5"
+                                     TextWrapping="NoWrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Window>
