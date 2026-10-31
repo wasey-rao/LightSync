@@ -109,6 +109,18 @@
                         </Grid>
                     </Border>
 
+                    <Border x:Name="LinkWarning" Visibility="Collapsed" CornerRadius="10" Padding="16,12" Margin="0,0,0,16"
+                            Background="#2E2412" BorderBrush="#8A6A1F" BorderThickness="1">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Left" Text="&#xE7BA;" FontFamily="{StaticResource IconFont}" FontSize="18"
+                                       Foreground="#F5B83D" Margin="0,1,12,0" VerticalAlignment="Top" />
+                            <StackPanel>
+                                <TextBlock x:Name="LinkWarningTitle" Text="Colors aren't reaching your strip" FontWeight="SemiBold" Foreground="#FBD38D" />
+                                <TextBlock x:Name="LinkWarningDetail" TextWrapping="Wrap" Foreground="#E8D9B8" Margin="0,3,0,0" FontSize="12.5" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
                     <Button x:Name="SyncButton" Style="{StaticResource PrimaryButton}" Height="48" FontSize="15"
                             AutomationProperties.Name="{Binding Text, ElementName=SyncButtonText}"
                             Margin="0,0,0,20" Click="SyncButton_Click">
@@ -323,9 +335,12 @@
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
-                            <CheckBox Content="Connect automatically when LightSync starts" IsChecked="{Binding AutoConnect}" />
+                            <CheckBox Content="Connect automatically when LightSync starts" IsChecked="{Binding AutoConnect}" Margin="0,0,0,8" />
+                            <CheckBox x:Name="ReleaseWhenIdleBox" IsChecked="{Binding ReleaseWhenIdle}"
+                                      Checked="ReleaseWhenIdle_Changed" Unchecked="ReleaseWhenIdle_Changed"
+                                      Content="Let my phone or another PC use the strip when LightSync is idle (disconnects after 2 minutes without screen sync)" />
                             <TextBlock Style="{StaticResource Hint}" Margin="0,10,0,0"
-                                       Text="The strip accepts one connection at a time. Close Lotus Lantern on your phone (or turn the phone's Bluetooth off) before connecting from the PC." />
+                                       Text="The strip accepts one connection at a time. If LightSync can't find it, close LightSync on your other PC (tray icon → Exit) or the Lotus Lantern app on your phone." />
                         </StackPanel>
                     </Border>
 

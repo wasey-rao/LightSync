@@ -15,6 +15,8 @@ public sealed class AppSettings
 {
     public string DeviceAddress { get; set; } = "BE:58:94:02:AF:91";
     public bool AutoConnect { get; set; } = true;
+    /// <summary>Drop the BLE link after a quiet spell so a phone or another PC can connect to the strip.</summary>
+    public bool ReleaseWhenIdle { get; set; } = true;
     public bool StartMinimized { get; set; }
     public bool ResumeSyncOnLaunch { get; set; } = true;
     public bool CloseToTray { get; set; } = true;

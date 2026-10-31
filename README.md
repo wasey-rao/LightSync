@@ -38,7 +38,8 @@ The big preview swatch shows exactly what is sent to the strip, along with the c
 
 ## Troubleshooting
 
-- **"Strip not found" / "Couldn't reach the strip"**: the phone is probably still connected. Close Lotus Lantern, or toggle the phone's Bluetooth off, then click **Connect**. Power-cycling the strip also frees it.
+- **"Strip not found", or the strip ignores your screen / goes dark**: another device has the strip. It accepts only one connection, so while LightSync on another PC or the Lotus Lantern app holds it, this PC's colors go nowhere. The Screen Sync page shows an amber **"Colors aren't reaching your strip"** warning when this happens. Exit LightSync on the other PC (tray icon → Exit) or close the phone app. LightSync connects by itself once the strip is free. Power-cycling the strip also frees it.
+- **Sharing the strip between PCs and a phone**: with **Settings → Let my phone or another PC use the strip when LightSync is idle** on (the default), LightSync disconnects after 2 minutes without screen sync and stops trying to connect, so another device can take over. Using LightSync again reconnects it.
 - **Laggy or dropping connection**: this PC sees the strip at about −84 dBm, which is weak. Moving the PC/strip closer or using a USB Bluetooth 5 dongle helps. LightSync reconnects automatically when the link drops.
 - **The strip goes dark on Netflix / Prime / Disney+ in a browser**: DRM-protected video is blanked for every screen-capture app. Nothing can capture it.
 - **Exclusive-fullscreen games**: DirectX capture usually works. If a game shows black, switch it to borderless/windowed fullscreen.

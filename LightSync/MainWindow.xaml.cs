@@ -65,6 +65,7 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         _engine = new ScreenSyncEngine(_device, () => _settings.Sync);
+        ApplyIdleRelease();
         _engine.FrameProcessed += OnFrameProcessed;
         _device.StateChanged += () => Dispatcher.InvokeAsync(UpdateConnectionUi);
         AppLog.LineAdded += line => Dispatcher.InvokeAsync(() => AppendLog(line));
@@ -244,6 +245,7 @@ public partial class MainWindow : Window
             LinkState.Connected => ("#22C55E", "Connected"),
             LinkState.Connecting => ("#F59E0B", "Connecting"),
             LinkState.Searching => ("#F59E0B", "Searching"),
+            LinkState.Standby => ("#60A5FA", "Standby"),
             _ => wanted ? ("#EF4444", "Not reachable") : ("#6B7280", "Disconnected"),
         };
         StatusDot.Fill = BrushFrom(dot);
@@ -251,6 +253,36 @@ public partial class MainWindow : Window
         StatusDetail.Text = wanted || _device.State != LinkState.Disconnected ? _device.Status : "Click Connect to link your strip.";
         ConnectButton.Content = wanted ? "Disconnect" : "Connect";
         if (_tray != null) _tray.Text = $"LightSync · {title}";
+        UpdateLinkWarning();
+    }
+
+    /// <summary>Makes it obvious when screen sync is running but nothing reaches the strip.</summary>
+    void UpdateLinkWarning()
+    {
+        bool show = _engine.IsRunning && _device.State != LinkState.Connected;
+        LinkWarning.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        if (!show) return;
+
+        if (_device.State is LinkState.Connecting or LinkState.Searching or LinkState.Standby)
+        {
+            LinkWarningTitle.Text = "Connecting to your strip…";
+            LinkWarningDetail.Text = "Colors start flowing as soon as it's connected. If this keeps repeating, the strip is connected to " +
+                "another device: exit LightSync on your other PC (tray icon → Exit) or close Lotus Lantern on your phone.";
+        }
+        else
+        {
+            LinkWarningTitle.Text = "Colors aren't reaching your strip";
+            LinkWarningDetail.Text = _device.Status + " LightSync keeps retrying and connects as soon as the strip is free.";
+        }
+    }
+
+    void ApplyIdleRelease() => _device.IdleReleaseMs = _settings.ReleaseWhenIdle ? 120_000 : null;
+
+    void ReleaseWhenIdle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_ready) return;
+        _settings.ReleaseWhenIdle = ReleaseWhenIdleBox.IsChecked == true;
+        ApplyIdleRelease();
     }
 
     void PowerOn_Click(object sender, RoutedEventArgs e) => PowerOn();
@@ -381,6 +413,7 @@ public partial class MainWindow : Window
         PreviewHex.Foreground = PreviewStats.Foreground = (Brush)FindResource("TextPrimary");
         PreviewHex.Text = running ? "Starting…" : "Idle";
         PreviewStats.Text = running ? "Waiting for the first frame" : "Press Start to mirror your screen onto the strip.";
+        UpdateLinkWarning();
     }
 
     void OnFrameProcessed(SyncFrame frame)

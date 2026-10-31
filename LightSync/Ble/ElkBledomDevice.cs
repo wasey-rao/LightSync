@@ -7,7 +7,15 @@ using Windows.Foundation.Metadata;
 
 namespace LightSync.Ble;
 
-public enum LinkState { Disconnected, Searching, Connecting, Connected }
+public enum LinkState
+{
+    Disconnected,
+    Searching,
+    Connecting,
+    Connected,
+    /// <summary>Link released while idle so other devices can connect; reconnects on the next command.</summary>
+    Standby,
+}
 
 /// <summary>
 /// Owns the BLE link to one ELK-BLEDOM controller. All radio work runs on a single background
@@ -22,6 +30,10 @@ public sealed class ElkBledomDevice : IDisposable
     const int CommandGapMs = 12;
     static readonly TimeSpan SearchTimeout = TimeSpan.FromSeconds(12);
 
+    // A connected strip stops advertising, so "not found" almost always means another device holds it.
+    public const string NotFoundMessage =
+        "Strip not found. It's probably connected to another device: LightSync on another PC, or the Lotus Lantern app on your phone. It could also be off or out of range.";
+
     readonly object _gate = new();
     readonly LinkedList<(string? Key, byte[] Data)> _commands = new();
     readonly SemaphoreSlim _wake = new(0);
@@ -31,7 +43,9 @@ public sealed class ElkBledomDevice : IDisposable
     ulong _address;
     bool _wantConnected;
     bool _disposed;
+    bool _standby;
     int _generation;
+    long _lastActivity;
 
     BluetoothLEDevice? _device;
     GattSession? _session;
@@ -45,6 +59,12 @@ public sealed class ElkBledomDevice : IDisposable
     public bool WantsConnection { get { lock (_gate) return _wantConnected; } }
     public int ColorIntervalMs { get; set; } = 33;
 
+    /// <summary>
+    /// When set, the link is released after this long without any command (screen sync sends one
+    /// every frame, so it never idles). Null keeps the connection open indefinitely.
+    /// </summary>
+    public int? IdleReleaseMs { get; set; }
+
     /// <summary>Raised from a background thread whenever <see cref="State"/> or <see cref="Status"/> changes.</summary>
     public event Action? StateChanged;
 
@@ -55,6 +75,8 @@ public sealed class ElkBledomDevice : IDisposable
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (address != _address) { _address = address; _generation++; }
             _wantConnected = true;
+            _standby = false;
+            _lastActivity = Environment.TickCount64;
             _loop ??= Task.Run(RunAsync);
         }
         Wake();
@@ -82,13 +104,18 @@ public sealed class ElkBledomDevice : IDisposable
             if (replacesColor) _pendingColor = null;
             // The controller's color is no longer what we last sent, so don't skip the next one.
             _lastColor = null;
+            _lastActivity = Environment.TickCount64;
         }
         Wake();
     }
 
     public void SetColor(byte r, byte g, byte b)
     {
-        lock (_gate) _pendingColor = (r, g, b);
+        lock (_gate)
+        {
+            _pendingColor = (r, g, b);
+            _lastActivity = Environment.TickCount64;
+        }
         Wake();
     }
 
@@ -141,6 +168,18 @@ public sealed class ElkBledomDevice : IDisposable
                 continue;
             }
 
+            bool stayIdle = false;
+            lock (_gate)
+            {
+                if (_standby && _commands.Count == 0 && _pendingColor == null) stayIdle = true;
+                else _standby = false;
+            }
+            if (stayIdle)
+            {
+                await _wake.WaitAsync();
+                continue;
+            }
+
             if (_writer == null || _linkLost || generation != connectedGeneration)
             {
                 TearDown();
@@ -148,7 +187,17 @@ public sealed class ElkBledomDevice : IDisposable
                 {
                     failures = 0;
                     connectedGeneration = generation;
-                    lock (_gate) _lastColor = null;
+                    lock (_gate)
+                    {
+                        _lastColor = null;
+                        _lastActivity = Environment.TickCount64;
+                    }
+                }
+                else if (IdleExpired())
+                {
+                    // Nobody is using LightSync: stop competing with whatever device has the strip.
+                    EnterStandby(dropPending: true);
+                    failures = 0;
                 }
                 else
                 {
@@ -192,6 +241,19 @@ public sealed class ElkBledomDevice : IDisposable
 
             if (packet == null)
             {
+                if (IdleReleaseMs is int idleMs && waitMs == Timeout.Infinite)
+                {
+                    if (IdleExpired())
+                    {
+                        // Nothing to send for a while: let the phone or another PC have the strip.
+                        EnterStandby(dropPending: false);
+                        connectedGeneration = -1;
+                        continue;
+                    }
+                    long idleLeft;
+                    lock (_gate) idleLeft = _lastActivity + idleMs - Environment.TickCount64;
+                    waitMs = (int)Math.Clamp(idleLeft, 1, int.MaxValue);
+                }
                 await _wake.WaitAsync(waitMs);
                 continue;
             }
@@ -214,6 +276,27 @@ public sealed class ElkBledomDevice : IDisposable
         }
 
         TearDown();
+    }
+
+    bool IdleExpired()
+    {
+        if (IdleReleaseMs is not int idleMs) return false;
+        lock (_gate) return Environment.TickCount64 - _lastActivity >= idleMs;
+    }
+
+    /// <summary>
+    /// Releases the link until the next command. <paramref name="dropPending"/> discards commands that
+    /// could not be delivered, so a stale color doesn't immediately restart the connection attempts.
+    /// </summary>
+    void EnterStandby(bool dropPending)
+    {
+        TearDown();
+        lock (_gate)
+        {
+            _standby = true;
+            if (dropPending) { _commands.Clear(); _pendingColor = null; }
+        }
+        SetState(LinkState.Standby, "Idle, so the strip is free for your phone or another PC. LightSync reconnects when you use it.");
     }
 
     async Task BackoffAsync(int milliseconds, int generation)
@@ -246,7 +329,7 @@ public sealed class ElkBledomDevice : IDisposable
                 SetState(LinkState.Searching, "Searching for the strip…");
                 if (!await WaitForAdvertisementAsync(address, SearchTimeout))
                 {
-                    SetState(LinkState.Disconnected, "Strip not found. Is it powered on, and is the phone app disconnected from it?");
+                    SetState(LinkState.Disconnected, NotFoundMessage);
                     return false;
                 }
                 SetState(LinkState.Connecting, $"Connecting to {mac}…");
@@ -295,7 +378,7 @@ public sealed class ElkBledomDevice : IDisposable
 
             if (_writer == null)
             {
-                SetState(LinkState.Disconnected, "Couldn't reach the strip. Make sure it's on, in range, and not connected to your phone.");
+                SetState(LinkState.Disconnected, NotFoundMessage);
                 return false;
             }
 
